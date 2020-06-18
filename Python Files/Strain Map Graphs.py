@@ -31,7 +31,7 @@ def minPos(list_ = []):
 lis = []
 lisMin = []
                 #cyan               #green          #magenta
-for name_ in ["Results from before volume relax", "preRelaxed"]:  
+for name_ in ["Strain Set A", "Strain Set B"]:  
     #Set up:  
     df1 = pd.read_csv('C:\\Users\\baron\\Desktop\\' + name_ + '\\output.csv')
     df1 = df1.dropna(how='all')
@@ -150,7 +150,7 @@ plt.legend((r'Set $a$', '_', 'Set $b$')) #<<there has to be a better way of doin
                                                         #anything with '_' at the beginning
     
 plot = plt.gcf()
-plot.savefig('C:\\Users\\baron\\Desktop\\StrainMap.pdf', dpi = 95)
+plot.savefig('C:\\Users\\baron\\Desktop\\StrainMap.png', dpi = 300)
 
 
 

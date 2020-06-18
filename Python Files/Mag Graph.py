@@ -1,115 +1,139 @@
-# For use with POSCAR files that have already been relaxed (volume relaxation) before being strained
+# Magnetization graph
 
 #Imports:
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import re
-import os
 
-#Definitions:
-def Clear (listOfLists = []):
-    j = 0
-    while (j < len(listOfLists)):
-        listOfLists[j].clear()
-        j = j + 1
-    return
-
-def minPos(list_ = []):
-    i = 0
-    toReturn = None
-    mini = max(list_)
-    while (i < len(list_)):
-        if (list_[i] < mini):
-            mini = list_[i]
-            toReturn = i
-        i = i + 1
-        
-    return toReturn
-            
-#Important Data Starting lattice constant:
-LATCNST = 2.46 #angstroms
-ENperATM_FOR_PURE = -9.233597199 #eV / atom
-NRG_DENSITY_PURE = 3.523713443 #ev / angst^2
-
-half = False
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
+plt.tight_layout = True
     
+FILE_PATH = 'C:\\Users\\baron\\Desktop\\School\\Research\\Fa 2018 - Spring 2020\\Vac-Defect Specific\\Magnetization\\'
+
+def polyEval(x, coeffs):
+    order = len(coeffs) - 1
+    
+    i = 0
+    s = 0
+    while(order >= 0):
+        s = s + coeffs[i]*(x**order)
+        i = i + 1
+        order = order - 1
+  
+    return s
+
+def poly(lisX, lisY, degEdit = 0):
+    x, y = [], []
+    fit = np.polyfit(lisX, lisY, len(lisX) + degEdit)
+
+    i = lisX[0]
+    while(i <= lisX[-1] + ((lisX[-1]-lisX[0])/100)):
+        x.append(i)
+        y.append(polyEval(x[-1], fit))
+        i = i + (lisX[-1]-lisX[0])/100
+    
+    return x, y
+    
+
 #Set up:  
-df1 = pd.read_csv('C:\\Users\\baron\\Desktop\\outputM.csv')
-df1 = df1.dropna(how='all')
-sortedDataFrame = df1.sort_values('name for determining information')  #TODO: figure out why this stuff dosent work
-df1 = sortedDataFrame
-df1.to_csv('C:\\Users\\baron\\Desktop\\tmp.csv')
-df = pd.read_csv('C:\\Users\\baron\\Desktop\\tmp.csv')
+df = pd.read_csv(FILE_PATH + 'outputM.csv')
+df.sort_values(by = ['displacement from original positions'], inplace = True)
 
 #Getting the columns, saving to lists
 mag = df['mag']
-displacement = df['displacement from original positions'] #displacement from 2.46 angstroms
+displacement = df['xV'] #displacement from starting 2.468217 angstroms
 names = df['name for determining information']
+energy = df['energy']
 
 #Declerations
-i = 0
-x = []
-y = []
-z = []
-lists = []
-#Main loop:
-try:
-    while (i < (df.shape[0] + 1)):
-        #As long as the names are the same, continue to add info to the same arrays
-        if (names[i] == names[i+1] and displacement[i] != -99):
-            x.append(float(mag[i]))
-            y.append(float(displacement[i]))
-            z.append(names[i])
+left, right = 6, 6
 
-            
-        #If the names are different, we must be about to consider different calculations...so:
-        elif (names[i] != names[i+1]) and (names[i] != 'endf'):
-           # <codecell> Energy vs. Lattice Constant Graphs
-            #append the final values
-            if (displacement[i] != -99):
-                x.append(float(mag[i]))
-                y.append(float(displacement[i]))
-                z.append(names[i])
+
+#Plots for strain vs mag
+x = list(displacement)[:]
+x = [(v/14.686191521410283) - 1 for v in x]
+e = list(energy)[:]
+y = list(mag)[:]
+
+#Plots for dM/de vs strain
+i = 1
+dx = []
+dy = []
+while(i < len(x)-1): ##previously while(i < len(x)):
+    if (True): ##do forward diff ##previously if(i == 0):
+        dx.append(x[i])
+        dy.append((y[i+1] - y[i]) / (x[i+1] - x[i]))
+#    elif (i == len(x) - 1): ##do backwards diff
+#        dy.append((y[i] - y[i-1]) / (x[i] - x[i-1]))
+#    else: #Average forwards and backwards diff
+#        forw = (y[i+1] - y[i]) / (x[i+1] - x[i])
+#        back = (y[i] - y[i-1]) / (x[i] - x[i-1])
+#        dy.append((forw + back) / 2)
+    i = i + 1          
+      
+# <codecell> Mag Graphs
+#Plot figs
     
-            #turn each value into an ordered pair to avoid bad graphs (trust me, dont change this)
-            j = 0
-            while (j < len(x)):
-                lists.append([float(y[j]), float(x[j])])
-                j = j+1            
-            lists.sort()
-            _y_=[y[0] for y in lists]
-            _x_=[x[1] for x in lists]
-                
+##Full Image------------------------------------------------------------------
+#plt.title('Full')
+plt.xlabel(r"Zig-Zag Strain")
+plt.ylabel(r'Net Magnetic Moment ($\mu_{\mathrm{B}}$)')
+plt.ylim(1.5, 2)
+
+leftX, leftY = poly(x[:left], y[:left])
+rightX, rightY = poly(x[right:], y[right:], -5)
+plt.plot(leftX, leftY, color = 'c')
+plt.plot(rightX, rightY, color = 'c')
+plt.plot(x, y, 'ko')
+
+plot = plt.gcf()
+plot.savefig(FILE_PATH + 'mag.png', dpi = 300)            
+plt.show()
+plt.clf()
+
+#Derivitive plots----------------------------------------------------------
+#plt.title('Derivitive (forward difference)')
+plt.xlabel(r"Zig-Zag Strain")
+plt.ylabel(r'$\partial M/\partial\varepsilon$ ($\mu_{\mathrm{B}}$)')
+
+leftX, leftY = poly(dx[:left-1], dy[:left-1])
+rightX, rightY = poly(dx[right-1:], dy[right-1:], -5)
+plt.plot(leftX, leftY, color = 'c')
+plt.plot(rightX, rightY, color = 'c')
+plt.plot(dx, dy, 'ko')
+plot = plt.gcf()
+plot.savefig(FILE_PATH + 'magDerivitive.png', dpi = 300) 
+plt.show()
+plt.clf()
+
+##Zoomed image--------------------------------------------------------------
+centX, centY = 0.0087, 1.856
+offX, offY = 0.006, 0.07
+#plt.title('Zoomed')
+leftX, leftY = poly(x[:left], y[:left])
+rightX, rightY = poly(x[right:], y[right:], -2)
+plt.xlabel(r"Zig-Zag Strain")
+plt.ylabel(r'Net Magnetic Moment ($\mu_{\mathrm{B}}$)')
+plt.plot(leftX, leftY, color = 'c')
+plt.plot(rightX, rightY, color = 'c')
+plt.plot(x, y, color='k', marker='o', linewidth=0) #plot data points
+plt.xlim(centX - offX, centX + offX)
+plt.ylim(centY - offY, centY + offY)
+
+plot = plt.gcf()
+plot.savefig(FILE_PATH + 'magZoom.png', dpi = 300)            
+plt.show()
+plt.clf()
+
             
-            # <codecell> Mag Graphs
-            print(_y_, _x_)
-            #Plot figs
-            plt.title('Zig-Zag Strain: Unrelaxed Lattice')
-            plt.xlabel(r"Fractional displacement from $\vec{a}$ = 2.46 Å")
-            plt.ylabel(r'Magnetization ($\mu_{\mathrm{B}}$)')
-            plt.plot(_y_, _x_, color='k', marker='o', linewidth=0) #plot data points
-            plt.plot(_y_[:6], _x_[:6], color = 'c')
-            plt.plot(_y_[6:], _x_[6:], color = 'c')
-            plt.ylim(0,max(_x_) + 0.05)
 
-            plot = plt.gcf()
-            plot.savefig('C:\\Users\\baron\\Desktop\\mag.pdf', dpi = 95)            
-            
-            
-            # <codecell> end of loop, cleanup
-            
-            #Clearing the many lists I have before going into the next iteration       
-            Clear([x, y, z, _x_, _y_, lists])
-        i = i + 1
-except KeyError:
-    pass
-#Delete temp csv file
-os.remove('C:\\Users\\baron\\Desktop\\tmp.csv')
-
-
-
-
+#plt.axvline(x=(-0.00125 / 2), ymin = 0.02, ymax = 0.98, color = 'g', linestyle = '--', linewidth = 0.75)
+#plt.text(x = -0.022, y = 1.8, s = (r'$\Delta M \approx {:.1f} {}$').format(float(y[7]) - float(y[8]), r'\mu_{\mathrm{B}}'))
+#plt.axvline(x = -0.02, ymin = .53, ymax = .57, color ='g', linestyle = '--', linewidth = 0.75)
+#plt.axvline(x = -0.02, ymin = .665, ymax = .705, color ='g', linestyle = '--', linewidth = 0.75)
+#plt.axhline(y=y[7], xmin = 0.10, xmax = .465, color ='g', linestyle = '--', linewidth = 0.75)
+#plt.axhline(y=y[8], xmin = 0.10, xmax = .485, color ='g', linestyle = '--', linewidth = 0.75)
 
 
 
